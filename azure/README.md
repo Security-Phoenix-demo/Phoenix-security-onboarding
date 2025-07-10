@@ -9,10 +9,11 @@ This folder helps you enable **Microsoft Defender for Cloud** (Standard tier) an
 1. [Prerequisites](#prerequisites)
 2. [Quick Start](#quick-start)
 3. [What the Script Does](#what-the-script-does)
-4. [Phoenix Integration Steps](#phoenix-integration-steps)
-5. [Cleanup](#cleanup)
-6. [Troubleshooting](#troubleshooting)
-7. [References](#references)
+4. [Asset Enumeration & Summary](#asset-enumeration--summary)
+5. [Phoenix Integration Steps](#phoenix-integration-steps)
+6. [Cleanup](#cleanup)
+7. [Troubleshooting](#troubleshooting)
+8. [References](#references)
 
 ---
 
@@ -46,6 +47,53 @@ When complete you’ll see a green “Done!” message.
 
 ---
 
+## Asset Enumeration & Summary
+
+Need an at-a-glance inventory of every Azure resource?  Two helper scripts give you per-subscription counts and a machine-readable CSV without writing any code.
+
+### PowerShell (all-in-one)
+
+`azure/enumerate_resources_2.ps1` enumerates every subscription you can access via the **Az PowerShell** module, shows a progress bar, prints a nicely formatted breakdown, and writes a CSV.
+
+```powershell
+# interactive session
+cd azure
+./enumerate_resources_2.ps1                               # CSV → AzureResourceSummary-YYYYMMDDHHMMSS.csv
+
+# custom output path
+./enumerate_resources_2.ps1 -OutputCsv C:\temp\summary.csv
+```
+
+The CSV contains four columns:
+
+| SubscriptionName | SubscriptionId | ResourceType | Count |
+|------------------|---------------|--------------|-------|
+| My Dev Subs      | 1111-…        | TOTAL        | 256   |
+| My Dev Subs      | 1111-…        | Microsoft.Compute/virtualMachines | 42 |
+| …                | …             | …            | …    |
+
+### Bash (parse TSV)
+
+`azure/summarize_resource_counts.sh` expects the **TSV output** produced by `list_assets-azure.sh` (or any Azure Resource Graph query via `az graph query`).  It prints the same summary and writes an identical CSV.
+
+```bash
+# 1) Produce a TSV (example using Resource Graph)
+az graph query -q "Resources | project id, name, type, location" --output tsv \
+  > azure_assets.tsv
+
+# 2) Summarise
+cd azure
+./summarize_resource_counts.sh azure_assets.tsv                 # auto-names CSV
+./summarize_resource_counts.sh azure_assets.tsv mySummary.csv   # custom name
+
+# Or stream directly
+./list_assets-azure.sh | ./summarize_resource_counts.sh - output.csv
+```
+
+Both PowerShell and Bash versions generate **identical CSV files**, so you can pick whichever shell is more convenient.
+
+---
+
 ## What the Script Does
 
 ### Defender Plans Enabled
@@ -53,64 +101,4 @@ When complete you’ll see a green “Done!” message.
 | Plan (CLI name) | Covers |
 |-----------------|--------|
 | `VirtualMachines` | Defender for Servers (includes MDE integration) |
-| `AppServices` | Web Apps, API Apps, Functions |
-| `SqlServers` / `SqlServerVirtualMachines` | Azure SQL / SQL VMs |
-| `StorageAccounts` | Storage accounts data-plane protection |
-| `KubernetesService` | AKS clusters |
-| `ContainerRegistry` | ACR image scanning |
-| `KeyVaults` | Secrets & key management |
-
-All plans are set to **Standard** (`az security pricing create --tier Standard`).
-
-### Defender for Endpoint Integration
-
-`az security setting update --name WDATP --setting-value On` tells Defender for Cloud to automatically onboard VMs/servers into Microsoft Defender for Endpoint (formerly Windows Defender ATP).
-
----
-
-## Phoenix Integration Steps
-
-1. In the **Azure Portal** under *Microsoft Defender for Cloud → Environment settings*, confirm that alerts are flowing (can take ~15 min).
-2. In the Phoenix Platform go to **Integrations → Scanners → Azure Defender** and click **Add Scanner**.
-3. Provide:
-   * **Subscription / Tenant IDs** to monitor.
-   * **App Registration (Service Principal)** credentials with `SecurityReader` role at tenant root.
-   * Select whether to ingest alerts, recommendations, or both.
-4. Click **Create Scanner** – Phoenix will start syncing data shortly.
-
----
-
-## Cleanup
-
-To disable Defender plans & MDE integration:
-
-```bash
-# set the subscription first
-az account set --subscription <SUBSCRIPTION_ID>
-
-# downgrade each plan back to Free
-for plan in VirtualMachines AppServices SqlServers SqlServerVirtualMachines StorageAccounts KubernetesService ContainerRegistry KeyVaults; do
-  az security pricing create --name $plan --tier Free
-done
-
-# turn off Defender for Endpoint integration
-az security setting update --name WDATP --setting-value Off
-```
-
----
-
-## Troubleshooting
-
-| Issue | Resolution |
-|-------|------------|
-| `AuthorizationFailed` when enabling pricing | Ensure your identity is **Owner** or has `Microsoft.Security/pricings/write` permissions. |
-| `az security setting` reports “not found” | Your Azure CLI version may be outdated; run `az upgrade`. |
-| Defender for Endpoint onboarding fails on Linux VMs | Validate the *Log Analytics agent* or *AMA* is installed; check [MDE Linux requirements](https://learn.microsoft.com/microsoft-365/security/defender-endpoint/linux). |
-
----
-
-## References
-
-* [Enable Microsoft Defender plans via CLI](https://learn.microsoft.com/azure/defender-for-cloud/powershell-onboarding)
-* [Defender for Endpoint integration](https://learn.microsoft.com/azure/defender-for-cloud/defender-for-endpoint)
-* [Pricing](https://aka.ms/DefenderPricing) 
+| `AppServices`
