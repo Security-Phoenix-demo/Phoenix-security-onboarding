@@ -11,13 +11,14 @@
 3. [Setup Options](#setup-options)
    * Shell Script
    * Terraform
-4. [Service Account & Credentials](#service-account--credentials)
-5. [Phoenix Platform Integration](#phoenix-platform-integration)
-6. [Troubleshooting & FAQ](#troubleshooting--faq)
-7. [Cleanup](#cleanup)
-8. [Costs & Quotas](#costs--quotas)
-9. [References](#references)
-10. [License](#license)
+4. [Asset Enumeration & Summary](#asset-enumeration--summary)
+5. [Service Account & Credentials](#service-account--credentials)
+6. [Phoenix Platform Integration](#phoenix-platform-integration)
+7. [Troubleshooting & FAQ](#troubleshooting--faq)
+8. [Cleanup](#cleanup)
+9. [Costs & Quotas](#costs--quotas)
+10. [References](#references)
+11. [License](#license)
 
 ---
 
@@ -92,6 +93,51 @@ terraform apply -var='project_ids=["my-dev","my-prod"]'
 ```
 
 Terraform **does not** yet expose resources to toggle individual detectors. Use the script / CLI afterwards if detectors other than SHA are required.
+
+---
+
+## Asset Enumeration & Summary
+
+Need a quick CSV with the **count of every asset type per project**? Use `gcp/list_assets.sh`.
+
+### What it Does
+
+* Iterates over **all projects** returned by `gcloud projects list`.
+* Silently enables the **Cloud Asset API** (`cloudasset.googleapis.com`) on any project where it’s disabled (avoids the interactive *“Would you like to enable…?”* prompt).
+* Queries `assetType` across the entire project via **Cloud Asset Inventory**.
+* Appends one CSV row per asset type and a **TOTAL** row:
+
+  `ProjectId,AssetType,Count`
+
+### Usage
+
+```bash
+cd gcp
+chmod +x list_assets.sh          # once
+
+# Default output file → GcpAssetSummary-YYYYMMDDHHMMSS.csv
+./list_assets.sh
+
+# Custom path / filename
+./list_assets.sh myAssets.csv
+
+# Stream progress only (CSV goes to file, messages to stderr)
+./list_assets.sh 2> /dev/stdout | tee run.log
+```
+
+Sample CSV (truncated):
+
+```csv
+ProjectId,AssetType,Count
+dev-sandbox,google.compute.Instance,42
+dev-sandbox,google.pubsub.Topic,5
+dev-sandbox,TOTAL,52
+prod-main,google.compute.Instance,87
+prod-main,google.sql.Instance,3
+prod-main,TOTAL,90
+```
+
+The resulting file shares the **same column layout** as the Azure summaries, making cross-cloud comparisons a breeze.
 
 ---
 
