@@ -205,6 +205,15 @@ Need a quick inventory of everything in your AWS account? The helper script `clo
 
 ### Usage
 
+1. **Log into AWS Console** and open CloudShell
+2. **Upload the script** using the CloudShell file upload feature:
+
+   ![Upload file to CloudShell](upload-file-aws.png)
+
+3. **Set proper permissions** and run the enumeration:
+
+   ![Update script privileges](update_priv.png)
+
 ```bash
 # Clone or copy the script first
 chmod +x cloudshell_list_assets.sh
@@ -219,10 +228,20 @@ chmod +x cloudshell_list_assets.sh
 ./cloudshell_list_assets.sh > assets.txt
 ```
 
-What you’ll see:
+What you'll see:
 
 * A spinner indicating progress per region.
-* Every taggable resource’s ARN printed line-by-line.
+* Every taggable resource's ARN printed line-by-line.
 * A per-region count and a final **grand total**.
 
-> The Resource Groups Tagging API returns only *taggable* resources. Non-taggable objects like IAM roles or Route 53 zones aren’t included.
+![Asset enumeration results](list_assets.png)
+
+> The Resource Groups Tagging API returns only *taggable* resources. Non-taggable objects like IAM roles or Route 53 zones aren't included.
+
+
+if the output is too long:
+ ./cloudshell_list_assets.sh > asset_for_phoenix.txt
+
+then downlaod the file 
+
+   ![Download File](download_file_aws.png)
